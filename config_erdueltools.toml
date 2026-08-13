@@ -1,0 +1,15 @@
+[modengine]
+debug = false
+
+# Load erdueltools only. Do not combine with er3v3.
+external_dlls = [ "SeamlessCoop\\ersc.dll", "mod/erdueltools.dll"]
+
+[extension.mod_loader]
+enabled = true
+loose_params = false
+mods = [
+    { enabled = true, name = "default", path = "mod" }
+]
+
+[extension.scylla_hide]
+enabled = false

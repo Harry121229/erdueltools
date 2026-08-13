@@ -1,0 +1,3 @@
+This repository vendors a subset of fromsoftware-rs / eldenring-rs
+(https://github.com/vswarte/eldenring-rs) for Elden Ring bindings.
+That library is licensed under MIT OR Apache-2.0.
