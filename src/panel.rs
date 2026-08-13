@@ -37,14 +37,15 @@ enum Action {
 }
 
 #[derive(Clone, Default)]
-struct ViewState {
-    entries: Vec<BuildEntry>,
-    bindings: [Option<String>; 4],
-    active: Option<String>,
-    care: bool,
-    busy: bool,
-    error: Option<String>,
-    revision: u64,
+pub(crate) struct ViewState {
+    pub entries: Vec<BuildEntry>,
+    pub bindings: [Option<String>; 4],
+    pub active: Option<String>,
+    pub care: bool,
+    pub ctrl_picker: bool,
+    pub busy: bool,
+    pub error: Option<String>,
+    pub revision: u64,
 }
 
 const ID_LIST: i32 = 101;
@@ -59,6 +60,7 @@ const ID_BIND_F2: i32 = 122;
 const ID_BIND_F3: i32 = 123;
 const ID_BIND_F4: i32 = 124;
 const ID_CARE: i32 = 131;
+const ID_CTRL_PICKER: i32 = 132;
 const ID_REFRESH: i32 = 141;
 const ID_CLOSE: i32 = 142;
 const ID_CLEAR_COMBAT: i32 = 143;
@@ -91,6 +93,7 @@ static LIST_HWND: AtomicIsize = AtomicIsize::new(0);
 static NAME_HWND: AtomicIsize = AtomicIsize::new(0);
 static BINDINGS_HWND: AtomicIsize = AtomicIsize::new(0);
 static CARE_HWND: AtomicIsize = AtomicIsize::new(0);
+static CTRL_PICKER_HWND: AtomicIsize = AtomicIsize::new(0);
 static LANG_HWND: AtomicIsize = AtomicIsize::new(0);
 static STAT_HWNDS: Mutex<Vec<isize>> = Mutex::new(Vec::new());
 static COMBAT_HWNDS: Mutex<Vec<isize>> = Mutex::new(Vec::new());
@@ -112,6 +115,7 @@ static VIEW: Mutex<ViewState> = Mutex::new(ViewState {
     bindings: [None, None, None, None],
     active: None,
     care: false,
+    ctrl_picker: false,
     busy: false,
     error: None,
     revision: 0,
@@ -133,6 +137,38 @@ fn push_action(action: Action) {
 fn push_notice(message: String) {
     if let Ok(mut notices) = PENDING_NOTICES.lock() {
         notices.push(message);
+    }
+}
+
+pub(crate) fn queue_load(id: String) {
+    push_action(Action::Load(id));
+}
+
+pub(crate) fn notice(message: String) {
+    push_notice(message);
+}
+
+pub(crate) fn refresh_snapshot() {
+    if let Ok(mut cached) = PANEL_SNAPSHOT.lock() {
+        *cached = crate::snap::capture().ok();
+    }
+}
+
+pub(crate) fn cached_snapshot() -> Option<crate::snap::BuildSnapshot> {
+    PANEL_SNAPSHOT.lock().ok().and_then(|cached| cached.clone())
+}
+
+pub(crate) fn view_snapshot() -> ViewState {
+    VIEW.lock().ok().map(|view| view.clone()).unwrap_or_default()
+}
+
+pub(crate) fn publish_library() {
+    publish_state();
+}
+
+pub(crate) fn mark_selected(id: String) {
+    if let Ok(mut selected) = SELECT_AFTER_REFRESH.lock() {
+        *selected = Some(id);
     }
 }
 
@@ -242,6 +278,7 @@ fn publish_state() {
         view.bindings = bindings;
         view.active = crate::library::active();
         view.care = crate::library::care_enabled();
+        view.ctrl_picker = crate::library::ctrl_picker_enabled();
         view.busy = crate::sync::is_busy();
         view.error = error;
         view.revision = view.revision.wrapping_add(1);
@@ -261,6 +298,7 @@ fn publish_library_state_from_ui(error: Option<String>) {
         view.bindings = bindings;
         view.active = crate::library::active();
         view.care = crate::library::care_enabled();
+        view.ctrl_picker = crate::library::ctrl_picker_enabled();
         view.error = error;
         view.revision = view.revision.wrapping_add(1);
     }
@@ -372,6 +410,7 @@ unsafe fn recreate_ui_fonts(dpi: u32) {
     set_control_font(NAME_HWND.load(Ordering::SeqCst), ui);
     set_control_font(BINDINGS_HWND.load(Ordering::SeqCst), ui);
     set_control_font(CARE_HWND.load(Ordering::SeqCst), ui);
+    set_control_font(CTRL_PICKER_HWND.load(Ordering::SeqCst), ui);
     set_control_font(LANG_HWND.load(Ordering::SeqCst), ui);
     if let Ok(stats) = STAT_HWNDS.lock() {
         for handle in stats.iter().copied() {
@@ -432,6 +471,13 @@ unsafe fn apply_locale_texts(hwnd: HWND) {
                         s.care_on
                     } else {
                         s.care_off
+                    }
+                }
+                ID_CTRL_PICKER => {
+                    if crate::library::ctrl_picker_enabled() {
+                        s.ctrl_picker_on
+                    } else {
+                        s.ctrl_picker_off
                     }
                 }
                 _ => continue,
@@ -810,12 +856,17 @@ unsafe fn build_controls(hwnd: HWND, instance: HINSTANCE, dpi: u32) {
         Ordering::SeqCst,
     );
 
-    let care = button(s.care_off, ID_CARE, MARGIN, 680, 220);
+    let care = button(s.care_off, ID_CARE, MARGIN, 680, 180);
     CARE_HWND.store(
         care.map(|value| value.0 as isize).unwrap_or(0),
         Ordering::SeqCst,
     );
-    button(s.btn_clear_combat, ID_CLEAR_COMBAT, MARGIN + 228, 680, 170);
+    let ctrl = button(s.ctrl_picker_off, ID_CTRL_PICKER, MARGIN + 188, 680, 180);
+    CTRL_PICKER_HWND.store(
+        ctrl.map(|value| value.0 as isize).unwrap_or(0),
+        Ordering::SeqCst,
+    );
+    button(s.btn_clear_combat, ID_CLEAR_COMBAT, MARGIN + 376, 680, 150);
     let footer_w = 110;
     button(
         s.btn_refresh,
@@ -1111,6 +1162,16 @@ unsafe fn refresh_ui() {
         let text = if view.care { s.care_on } else { s.care_off };
         let _ = unsafe { SetWindowTextW(HWND(care as *mut _), &HSTRING::from(text)) };
     }
+    let ctrl = CTRL_PICKER_HWND.load(Ordering::SeqCst);
+    if ctrl != 0 {
+        let s = crate::i18n::t();
+        let text = if view.ctrl_picker {
+            s.ctrl_picker_on
+        } else {
+            s.ctrl_picker_off
+        };
+        let _ = unsafe { SetWindowTextW(HWND(ctrl as *mut _), &HSTRING::from(text)) };
+    }
     set_text(LANG_HWND.load(Ordering::SeqCst), crate::i18n::t().lang_button);
 }
 
@@ -1222,6 +1283,20 @@ unsafe fn on_command(hwnd: HWND, id: i32, notification: u16) {
                 },
             );
         }
+        ID_CTRL_PICKER => {
+            let enabled = !crate::library::ctrl_picker_enabled();
+            if !enabled {
+                crate::native_ui::picker_cancel();
+            }
+            run_library_action(
+                crate::library::set_ctrl_picker_enabled(enabled),
+                if enabled {
+                    s.ctrl_picker_enabled_msg
+                } else {
+                    s.ctrl_picker_disabled_msg
+                },
+            );
+        }
         ID_LANG => match crate::library::cycle_language() {
             Ok(_) => unsafe { apply_locale_texts(hwnd) },
             Err(error) => push_notice(crate::i18n::fmt(crate::i18n::t().op_failed, [&error])),
@@ -1291,6 +1366,7 @@ unsafe extern "system" fn wnd_proc(
             NAME_HWND.store(0, Ordering::SeqCst);
             BINDINGS_HWND.store(0, Ordering::SeqCst);
             CARE_HWND.store(0, Ordering::SeqCst);
+            CTRL_PICKER_HWND.store(0, Ordering::SeqCst);
             if let Ok(mut displayed) = DISPLAYED.lock() {
                 displayed.clear();
             }

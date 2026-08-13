@@ -14,7 +14,7 @@ use windows::core::w;
 
 static MODULE: OnceLock<Option<(usize, usize)>> = OnceLock::new();
 
-fn module_image() -> Option<(usize, usize)> {
+pub(crate) fn module_image() -> Option<(usize, usize)> {
     *MODULE.get_or_init(|| {
         let module = unsafe {
             GetModuleHandleW(w!("eldenring.exe"))
@@ -277,6 +277,64 @@ pub fn resolve_packet24_owner_outer_once() -> Option<usize> {
         0x18, 0x48,
     ];
     resolve_packet24_owner_outer(0x3d_6db0, &PROLOGUE)
+}
+
+/// Esc 暂停菜单「讯息 / Messages」：打开 `BloodMessageTopDialog` 的包装函数。
+///
+/// RVA `0x898D00`。全模块唯一内点 `b9 68 15 00 00`（分配 0x1568）在 +0x3D。
+pub fn resolve_open_blood_message_top() -> Option<usize> {
+    let (base, size) = module_image()?;
+    const RVA: usize = 0x898_d00;
+    const PROLOGUE: [u8; 14] = [
+        0x48, 0x8B, 0xC4, 0x56, 0x57, 0x41, 0x56, 0x48, 0x81, 0xEC, 0xA0, 0x00, 0x00, 0x00,
+    ];
+    const INNER: [u8; 5] = [0xB9, 0x68, 0x15, 0x00, 0x00];
+    const INNER_OFF: usize = 0x3D;
+
+    let by_rva = base + RVA;
+    if by_rva + INNER_OFF + INNER.len() <= base + size
+        && unsafe { std::slice::from_raw_parts(by_rva as *const u8, PROLOGUE.len()) } == PROLOGUE
+        && unsafe { std::slice::from_raw_parts((by_rva + INNER_OFF) as *const u8, INNER.len()) }
+            == INNER
+    {
+        return Some(by_rva);
+    }
+
+    let hit = find_aob_unique(base, size, &INNER, &[0xFF; 5])?;
+    let func = hit.checked_sub(INNER_OFF)?;
+    if unsafe { std::slice::from_raw_parts(func as *const u8, PROLOGUE.len()) } != PROLOGUE {
+        return None;
+    }
+    Some(func)
+}
+
+/// `CSMenuManImp` 打开暂停菜单（创建 `CSPopupMenu`，等价按 Esc）。
+///
+/// RVA `0x7660F0`。唯一内点 `48 83 bb 80 00 00 00 00 75 4c`（cmp popup_menu）在 +0x80。
+pub fn resolve_open_pause() -> Option<usize> {
+    let (base, size) = module_image()?;
+    const RVA: usize = 0x766_0f0;
+    const PROLOGUE: [u8; 6] = [0x40, 0x57, 0x48, 0x83, 0xEC, 0x30];
+    const INNER: [u8; 10] = [
+        0x48, 0x83, 0xBB, 0x80, 0x00, 0x00, 0x00, 0x00, 0x75, 0x4C,
+    ];
+    const INNER_OFF: usize = 0x80;
+
+    let by_rva = base + RVA;
+    if by_rva + INNER_OFF + INNER.len() <= base + size
+        && unsafe { std::slice::from_raw_parts(by_rva as *const u8, PROLOGUE.len()) } == PROLOGUE
+        && unsafe { std::slice::from_raw_parts((by_rva + INNER_OFF) as *const u8, INNER.len()) }
+            == INNER
+    {
+        return Some(by_rva);
+    }
+
+    let hit = find_aob_unique(base, size, &INNER, &[0xFF; 10])?;
+    let func = hit.checked_sub(INNER_OFF)?;
+    if unsafe { std::slice::from_raw_parts(func as *const u8, PROLOGUE.len()) } != PROLOGUE {
+        return None;
+    }
+    Some(func)
 }
 
 /// 菜单装备路径使用的原生“构造并广播当前装备快照”函数。

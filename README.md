@@ -6,12 +6,13 @@ Elden Ring duel build toolkit. Save and restore armor, weapons, talismans, spell
 
 ## Features
 
-- F5 build manager panel
+- F5 in-game build manager panel (ImGui)
 - F1–F4 load bound builds
+- Hold Ctrl (panel toggle) + mouse L/R to pick a build by dominant stat color, release to load
 - F7 overwrite current build / Shift+F7 create a new one
-- F6 duel K/D for the selected build
+- F6 toggle top-right duel score / win-rate HUD
 - F9 purge weapons / armor / talismans only
-- Language: English / 中文 / 한국어 / 日本語 / Français
+- Language: English / 中文 / 日本語 / Français
 - After sync, send a native equipment snapshot so peers refresh appearance
 
 ## Build

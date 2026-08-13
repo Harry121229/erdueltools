@@ -10,6 +10,7 @@ mod hotkeys;
 mod i18n;
 mod library;
 mod magic;
+mod native_ui;
 mod net_appear;
 mod notify;
 mod offsets;
@@ -29,12 +30,12 @@ use fromsoftware_shared::SharedTaskImpExt;
 /// # Safety
 /// 由 Windows 加载器调用。
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DllMain(_hmodule: usize, reason: u32) -> bool {
+pub unsafe extern "C" fn DllMain(hmodule: usize, reason: u32) -> bool {
     if reason != 1 {
         return true;
     }
 
-    std::thread::spawn(|| {
+    std::thread::spawn(move || {
         if let Err(error) = library::init() {
             paths::stage(&format!("library_init_failed_{error}"));
         }
@@ -42,6 +43,7 @@ pub unsafe extern "C" fn DllMain(_hmodule: usize, reason: u32) -> bool {
             return;
         };
 
+        native_ui::install_overlay(hmodule);
         net_appear::install_network_trace_hook();
         combat::install_death_hook();
 
@@ -50,6 +52,7 @@ pub unsafe extern "C" fn DllMain(_hmodule: usize, reason: u32) -> bool {
                 combat::poll();
                 sync::poll();
                 panel::poll();
+                native_ui::poll();
                 hotkeys::poll();
             },
             CSTaskGroupIndex::FrameBegin,

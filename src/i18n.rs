@@ -1,4 +1,4 @@
-//! 界面与提示多语言（中 / 英 / 韩 / 日 / 法）。
+﻿//! 界面与提示多语言（中 / 英 / 日 / 法）。
 
 use std::sync::atomic::{AtomicU8, Ordering};
 
@@ -7,9 +7,8 @@ use std::sync::atomic::{AtomicU8, Ordering};
 pub enum Lang {
     Zh = 0,
     En = 1,
-    Ko = 2,
-    Ja = 3,
-    Fr = 4,
+    Ja = 2,
+    Fr = 3,
 }
 
 impl Lang {
@@ -17,9 +16,9 @@ impl Lang {
         match code.trim().to_ascii_lowercase().as_str() {
             "zh" | "zh-cn" | "cn" | "chinese" => Some(Self::Zh),
             "en" | "eng" | "english" => Some(Self::En),
-            "ko" | "kr" | "korean" => Some(Self::Ko),
             "ja" | "jp" | "japanese" => Some(Self::Ja),
             "fr" | "fra" | "french" => Some(Self::Fr),
+            "ko" | "kr" | "korean" => Some(Self::En),
             _ => None,
         }
     }
@@ -28,7 +27,6 @@ impl Lang {
         match self {
             Self::Zh => "zh",
             Self::En => "en",
-            Self::Ko => "ko",
             Self::Ja => "ja",
             Self::Fr => "fr",
         }
@@ -37,8 +35,7 @@ impl Lang {
     pub fn next(self) -> Self {
         match self {
             Self::Zh => Self::En,
-            Self::En => Self::Ko,
-            Self::Ko => Self::Ja,
+            Self::En => Self::Ja,
             Self::Ja => Self::Fr,
             Self::Fr => Self::Zh,
         }
@@ -47,9 +44,8 @@ impl Lang {
     pub fn from_u8(value: u8) -> Self {
         match value {
             1 => Self::En,
-            2 => Self::Ko,
-            3 => Self::Ja,
-            4 => Self::Fr,
+            2 => Self::Ja,
+            3 => Self::Fr,
             _ => Self::Zh,
         }
     }
@@ -84,6 +80,8 @@ pub struct L10n {
     pub btn_bind_f4: &'static str,
     pub care_on: &'static str,
     pub care_off: &'static str,
+    pub ctrl_picker_on: &'static str,
+    pub ctrl_picker_off: &'static str,
     pub btn_clear_combat: &'static str,
     pub btn_refresh: &'static str,
     pub btn_close: &'static str,
@@ -115,6 +113,8 @@ pub struct L10n {
     pub bound_fn: &'static str,
     pub care_enabled_msg: &'static str,
     pub care_disabled_msg: &'static str,
+    pub ctrl_picker_enabled_msg: &'static str,
+    pub ctrl_picker_disabled_msg: &'static str,
     pub combat_cleared: &'static str,
     pub list_refreshed: &'static str,
     pub op_failed: &'static str,
@@ -155,15 +155,21 @@ pub struct L10n {
     pub build_not_found: &'static str,
     pub build_name_empty: &'static str,
     pub ui_font: &'static str,
+    pub backpack_empty: &'static str,
+    pub picker_hint: &'static str,
+    pub picker_empty: &'static str,
+    pub scoreboard_on: &'static str,
+    pub scoreboard_off: &'static str,
 }
 
 const ZH: L10n = L10n {
     help: "erdueltools 已加载\n\n\
-F1/F2/F3/F4\t加载面板绑定的存档\n\
+F1–F4\t加载面板绑定的存档\n\
+Ctrl\t\t按住左右移动选择存档，松开加载（需在面板开启）\n\
 F7\t\t覆盖当前选中/已同步存档\n\
 Shift+F7\t\t新建独立存档\n\
-F5\t\t打开存档管理面板\n\
-F6\t\t查看选中存档决斗战绩\n\
+F5\t\t打开游戏内存档面板\n\
+F6\t\t开关顶部分数/胜率显示\n\
 F8\t\t手动清空当前击杀目标\n\
 F9\t\t只清空武器/护甲/护符，不发放物品\n\n\
 同步结束后会单端发送原生装备快照以刷新对端外观。\n\
@@ -185,6 +191,8 @@ F9\t\t只清空武器/护甲/护符，不发放物品\n\n\
     btn_bind_f4: "绑定 F4",
     care_on: "护理模式：已开启",
     care_off: "护理模式：已关闭",
+    ctrl_picker_on: "Ctrl选档：已开启",
+    ctrl_picker_off: "Ctrl选档：已关闭",
     btn_clear_combat: "清空此存档战绩",
     btn_refresh: "刷新",
     btn_close: "关闭",
@@ -216,6 +224,8 @@ F9\t\t只清空武器/护甲/护符，不发放物品\n\n\
     bound_fn: "已绑定 F{}",
     care_enabled_msg: "护理模式已开启",
     care_disabled_msg: "护理模式已关闭",
+    ctrl_picker_enabled_msg: "Ctrl 选档已开启",
+    ctrl_picker_disabled_msg: "Ctrl 选档已关闭",
     combat_cleared: "已清空此存档战绩",
     list_refreshed: "存档列表已刷新",
     op_failed: "操作失败：{}",
@@ -255,15 +265,21 @@ F9\t\t只清空武器/护甲/护符，不发放物品\n\n\
     build_not_found: "找不到构筑：{}",
     build_name_empty: "构筑名称不能为空",
     ui_font: "Microsoft YaHei UI",
+    backpack_empty: "空",
+    picker_hint: "按住 Ctrl · 左右移动选择 · 松开加载",
+    picker_empty: "没有可切换的存档",
+    scoreboard_on: "战绩显示：开",
+    scoreboard_off: "战绩显示：关",
 };
 
 const EN: L10n = L10n {
     help: "erdueltools loaded\n\n\
-F1/F2/F3/F4\tLoad bound build from panel\n\
+F1–F4\tLoad bound build from panel\n\
+Ctrl\t\tHold and move mouse L/R to pick build, release to load\n\
 F7\t\tOverwrite selected/synced build\n\
 Shift+F7\t\tCreate a new build\n\
-F5\t\tOpen build manager\n\
-F6\t\tShow selected build duel record\n\
+F5\t\tOpen in-game build panel\n\
+F6\t\tToggle top score / win-rate HUD\n\
 F8\t\tClear current kill target\n\
 F9\t\tPurge weapons/armor/talismans only\n\n\
 After sync, a native equipment snapshot is sent once to refresh peer appearance.\n\
@@ -285,6 +301,8 @@ Do not run with launch.bat (er3v3) at the same time.",
     btn_bind_f4: "Bind F4",
     care_on: "Care Mode: On",
     care_off: "Care Mode: Off",
+    ctrl_picker_on: "Ctrl Pick: On",
+    ctrl_picker_off: "Ctrl Pick: Off",
     btn_clear_combat: "Clear Record",
     btn_refresh: "Refresh",
     btn_close: "Close",
@@ -316,6 +334,8 @@ Do not run with launch.bat (er3v3) at the same time.",
     bound_fn: "Bound F{}",
     care_enabled_msg: "Care mode enabled",
     care_disabled_msg: "Care mode disabled",
+    ctrl_picker_enabled_msg: "Ctrl pick enabled",
+    ctrl_picker_disabled_msg: "Ctrl pick disabled",
     combat_cleared: "Cleared this build's record",
     list_refreshed: "Build list refreshed",
     op_failed: "Operation failed: {}",
@@ -355,115 +375,21 @@ Do not run with launch.bat (er3v3) at the same time.",
     build_not_found: "Build not found: {}",
     build_name_empty: "Build name cannot be empty",
     ui_font: "Segoe UI",
-};
-
-const KO: L10n = L10n {
-    help: "erdueltools 로드됨\n\n\
-F1/F2/F3/F4\t패널에 바인딩된 빌드 로드\n\
-F7\t\t선택/동기화된 빌드 덮어쓰기\n\
-Shift+F7\t\t새 빌드 생성\n\
-F5\t\t빌드 관리 패널 열기\n\
-F6\t\t선택 빌드 결투 전적 보기\n\
-F8\t\t현재 킬 대상 수동 초기화\n\
-F9\t\t무기/방어구/부적만 비우기\n\n\
-동기화 후 상대 외형 갱신을 위해 장비 스냅샷을 한 번 전송합니다.\n\
-옛 빌드에 스탯/장비 없음 안내가 뜨면 장비와 스탯을 맞춘 뒤 Shift+F7.\n\
-launch.bat (er3v3) 와 동시에 사용하지 마세요.",
-    panel_title: "erdueltools 빌드 관리",
-    section_builds: "빌드",
-    section_stats: "스탯",
-    section_combat: "결투 전적",
-    section_name: "이름",
-    btn_new: "새로 만들기",
-    btn_overwrite: "덮어쓰기",
-    btn_load: "로드",
-    btn_rename: "이름 변경",
-    btn_delete: "삭제",
-    btn_bind_f1: "F1 바인드",
-    btn_bind_f2: "F2 바인드",
-    btn_bind_f3: "F3 바인드",
-    btn_bind_f4: "F4 바인드",
-    care_on: "케어 모드: 켜짐",
-    care_off: "케어 모드: 꺼짐",
-    btn_clear_combat: "이 빌드 전적 초기화",
-    btn_refresh: "새로고침",
-    btn_close: "닫기",
-    lang_button: "언어: 한국어",
-    stat_level: "레벨",
-    stat_vigor: "생명력",
-    stat_mind: "정신력",
-    stat_endurance: "지구력",
-    stat_strength: "근력",
-    stat_dexterity: "기량",
-    stat_intelligence: "지력",
-    stat_faith: "신앙",
-    stat_arcane: "신비",
-    combat_wins: "승",
-    combat_losses: "패",
-    combat_winrate: "승률",
-    unbound: "미바인드",
-    missing: "[없음]",
-    syncing: "(동기화 중)",
-    refresh_failed: "새로고침 실패: ",
-    confirm_delete: "빌드 「{}」를 삭제할까요?",
-    confirm_clear_combat: "빌드 「{}」의 모든 승패를 초기화할까요?",
-    no_selection: "선택된 빌드 없음",
-    name_empty: "빌드 이름은 비울 수 없습니다",
-    created_selected: "빌드를 만들고 선택했습니다",
-    overwritten_selected: "선택한 빌드를 덮어썼습니다",
-    renamed: "빌드 이름을 변경했습니다",
-    deleted: "빌드를 삭제했습니다",
-    bound_fn: "F{} 바인드 완료",
-    care_enabled_msg: "케어 모드 켜짐",
-    care_disabled_msg: "케어 모드 꺼짐",
-    combat_cleared: "이 빌드 전적을 초기화했습니다",
-    list_refreshed: "빌드 목록을 새로고침했습니다",
-    op_failed: "작업 실패: {}",
-    start_sync: "동기화 시작: {}",
-    sync_busy: "이미 동기화 작업이 실행 중입니다",
-    capture_failed: "패널을 열 때 현재 빌드를 캡처하지 못했습니다",
-    target_cleared: "킬 대상을 수동으로 비웠습니다",
-    purge_failed: "정리 실패: {}",
-    no_active_combat: "선택된 빌드가 없어 전적을 볼 수 없습니다",
-    combat_detail: "{}: 승 {} / 패 {} / 승률 {}%",
-    created_build: "빌드 생성: {}",
-    save_failed: "저장 실패: {}",
-    no_active_overwrite: "선택된 빌드 없음: F5에서 선택하거나 먼저 동기화하세요",
-    overwritten_build: "빌드 덮어쓰기: {}",
-    binding_empty: "F{}에 바인드된 빌드가 없습니다. F5에서 설정하세요",
-    sync_failed: "동기화 실패: {}",
-    read_failed: "읽기 실패: {}",
-    duel_record: "결투 전적: 승 {} / 패 {}",
-    combat_save_failed: "전적 저장 실패: {}",
-    target_changed: "킬 대상 변경: {}",
-    unknown_player: "알 수 없는 플레이어",
-    sync_still_running: "이전 동기화가 아직 끝나지 않았습니다",
-    remove_item_missing: "RemoveItem 미해석",
-    item_give_missing: "ItemGive 미해석",
-    equip_gear_missing: "EquipGear 미해석",
-    no_stats: "빌드에 스탯 없음. Shift+F7로 다시 저장하세요",
-    no_loadout: "빌드에 장비 없음. Shift+F7로 다시 저장하세요",
-    sync_plan: "비우기 {} → 지급 → 장착 → 마법",
-    purge_start: "아이템 비우기 시작, 총 {}개",
-    sync_stalled: "동기화 중단: 삭제 불가 삭제{} 남음{} 걸림{}",
-    unknown: "알 수 없음",
-    delete_failed: "삭제 실패, 삭제됨 {}",
-    purge_done: "정리 완료: {}개 삭제",
-    give_failed: "지급 실패: {} 삭제{} 지급{}",
-    build_name_prefix: "빌드",
-    legacy_build: "이전 빌드 {}",
-    build_not_found: "빌드를 찾을 수 없음: {}",
-    build_name_empty: "빌드 이름은 비울 수 없습니다",
-    ui_font: "Malgun Gothic",
+    backpack_empty: "Empty",
+    picker_hint: "Hold Ctrl · move L/R · release to load",
+    picker_empty: "No builds to switch",
+    scoreboard_on: "Scoreboard: On",
+    scoreboard_off: "Scoreboard: Off",
 };
 
 const JA: L10n = L10n {
     help: "erdueltools を読み込みました\n\n\
-F1/F2/F3/F4\tパネルに割り当てたビルドを読込\n\
+F1–F4\tパネル割当ビルドを読込\n\
+Ctrl\t\t押しながら左右で選択、離して読込\n\
 F7\t\t選択/同期済みビルドを上書き\n\
 Shift+F7\t\t新規ビルドを作成\n\
-F5\t\tビルド管理パネルを開く\n\
-F6\t\t選択ビルドの決闘戦績を表示\n\
+F5\t\tゲーム内ビルドパネルを開く\n\
+F6\t\t上部の戦績/勝率表示を切替\n\
 F8\t\t現在のキル対象を手動クリア\n\
 F9\t\t武器/防具/タリスマンのみ削除\n\n\
 同期後、相手の見た目更新のため装備スナップショットを一度送信します。\n\
@@ -485,6 +411,8 @@ launch.bat (er3v3) と同時使用しないでください。",
     btn_bind_f4: "F4 割当",
     care_on: "ケアモード：オン",
     care_off: "ケアモード：オフ",
+    ctrl_picker_on: "Ctrl選択：オン",
+    ctrl_picker_off: "Ctrl選択：オフ",
     btn_clear_combat: "この戦績を消去",
     btn_refresh: "更新",
     btn_close: "閉じる",
@@ -516,6 +444,8 @@ launch.bat (er3v3) と同時使用しないでください。",
     bound_fn: "F{} を割り当てました",
     care_enabled_msg: "ケアモードをオンにしました",
     care_disabled_msg: "ケアモードをオフにしました",
+    ctrl_picker_enabled_msg: "Ctrl選択をオンにしました",
+    ctrl_picker_disabled_msg: "Ctrl選択をオフにしました",
     combat_cleared: "このビルドの戦績を消去しました",
     list_refreshed: "ビルド一覧を更新しました",
     op_failed: "操作失敗：{}",
@@ -555,15 +485,21 @@ launch.bat (er3v3) と同時使用しないでください。",
     build_not_found: "ビルドが見つかりません：{}",
     build_name_empty: "ビルド名を空にできません",
     ui_font: "Yu Gothic UI",
+    backpack_empty: "空",
+    picker_hint: "Ctrl長押し · 左右で選択 · 離して読込",
+    picker_empty: "切替できるビルドがありません",
+    scoreboard_on: "戦績表示：オン",
+    scoreboard_off: "戦績表示：オフ",
 };
 
 const FR: L10n = L10n {
     help: "erdueltools chargé\n\n\
-F1/F2/F3/F4\tCharger le build lié au panneau\n\
+F1–F4\tCharger le build lié au panneau\n\
+Ctrl\t\tMaintenir et bouger L/R pour choisir, relâcher pour charger\n\
 F7\t\tÉcraser le build sélectionné/synchronisé\n\
 Shift+F7\t\tCréer un nouveau build\n\
-F5\t\tOuvrir le gestionnaire de builds\n\
-F6\t\tVoir le bilan duel du build sélectionné\n\
+F5\t\tOuvrir le panneau in-game\n\
+F6\t\tAfficher/masquer le score en haut\n\
 F8\t\tEffacer manuellement la cible de kill\n\
 F9\t\tVider seulement armes/armures/talismans\n\n\
 Après sync, un snapshot d'équipement natif est envoyé une fois pour rafraîchir l'apparence.\n\
@@ -585,6 +521,8 @@ Ne pas utiliser en même temps que launch.bat (er3v3).",
     btn_bind_f4: "Lier F4",
     care_on: "Mode soin : activé",
     care_off: "Mode soin : désactivé",
+    ctrl_picker_on: "Sélect. Ctrl : activé",
+    ctrl_picker_off: "Sélect. Ctrl : désactivé",
     btn_clear_combat: "Effacer le bilan",
     btn_refresh: "Actualiser",
     btn_close: "Fermer",
@@ -616,6 +554,8 @@ Ne pas utiliser en même temps que launch.bat (er3v3).",
     bound_fn: "F{} lié",
     care_enabled_msg: "Mode soin activé",
     care_disabled_msg: "Mode soin désactivé",
+    ctrl_picker_enabled_msg: "Sélection Ctrl activée",
+    ctrl_picker_disabled_msg: "Sélection Ctrl désactivée",
     combat_cleared: "Bilan de ce build effacé",
     list_refreshed: "Liste des builds actualisée",
     op_failed: "Échec : {}",
@@ -655,13 +595,17 @@ Ne pas utiliser en même temps que launch.bat (er3v3).",
     build_not_found: "Build introuvable : {}",
     build_name_empty: "Le nom du build ne peut pas être vide",
     ui_font: "Segoe UI",
+    backpack_empty: "Vide",
+    picker_hint: "Maintenir Ctrl · bouger L/R · relâcher",
+    picker_empty: "Aucun build à changer",
+    scoreboard_on: "Score : activé",
+    scoreboard_off: "Score : désactivé",
 };
 
 pub fn t() -> &'static L10n {
     match language() {
         Lang::Zh => &ZH,
         Lang::En => &EN,
-        Lang::Ko => &KO,
         Lang::Ja => &JA,
         Lang::Fr => &FR,
     }

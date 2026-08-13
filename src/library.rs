@@ -66,6 +66,9 @@ struct Config {
     bindings: Vec<Option<String>>,
     #[serde(default)]
     care_enabled: bool,
+    /// 按住 Ctrl 左右选档；默认关闭，需在面板开启。
+    #[serde(default)]
+    ctrl_picker_enabled: bool,
     #[serde(default)]
     legacy_migrated: bool,
     #[serde(default = "default_language")]
@@ -77,6 +80,7 @@ impl Default for Config {
         Self {
             bindings: default_bindings(),
             care_enabled: false,
+            ctrl_picker_enabled: false,
             legacy_migrated: false,
             language: default_language(),
         }
@@ -518,6 +522,28 @@ pub fn set_care_enabled(enabled: bool) -> Result<(), String> {
     Ok(())
 }
 
+/// 按住 Ctrl 选档开关。
+pub fn ctrl_picker_enabled() -> bool {
+    if init().is_err() {
+        return false;
+    }
+    lock_state()
+        .map(|state| state.config.ctrl_picker_enabled)
+        .unwrap_or(false)
+}
+
+/// 持久化 Ctrl 选档开关。
+pub fn set_ctrl_picker_enabled(enabled: bool) -> Result<(), String> {
+    let mut state = ready_state()?;
+    let old = state.config.ctrl_picker_enabled;
+    state.config.ctrl_picker_enabled = enabled;
+    if let Err(error) = persist_config(&state.config) {
+        state.config.ctrl_picker_enabled = old;
+        return Err(error);
+    }
+    Ok(())
+}
+
 /// 当前界面语言。
 pub fn language() -> Lang {
     if init().is_err() {
@@ -542,7 +568,7 @@ pub fn set_language(lang: Lang) -> Result<(), String> {
     Ok(())
 }
 
-/// 按 zh → en → ko → ja → fr 循环切换语言并持久化。
+/// 按 zh → en → ja → fr 循环切换语言并持久化。
 pub fn cycle_language() -> Result<Lang, String> {
     let next = language().next();
     set_language(next)?;
