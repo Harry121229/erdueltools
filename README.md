@@ -36,8 +36,6 @@ enabled = true
 mods = [{ enabled = true, name = "default", path = "mod" }]
 ```
 
-Do not run together with er3v3.
-
 ## Credits
 
 Game bindings are vendored from [eldenring-rs](https://github.com/vswarte/eldenring-rs) (MIT OR Apache-2.0).
